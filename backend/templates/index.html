@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CHATTORNEY</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      font-size: 12px;
+      background-color: #f4f4f4;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    .chat-container {
+      width: 400px;
+      max-width: 100%;
+      display: flex;
+      justify-content: center;
+    }
+
+    .chat-box {
+      width: 100%;
+      background-color: white;
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .messages {
+      padding: 10px;
+      height: 400px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .message-bubble {
+      max-width: 75%;
+      padding: 10px;
+      border-radius: 20px;
+      word-wrap: break-word;
+      display: inline-block;
+    }
+
+    .message-bubble.user {
+      align-self: flex-end;
+      background-color: #007bff;
+      color: white;
+    }
+
+    .message-bubble.bot {
+      align-self: flex-start;
+      background-color: #f0f0f0;
+      color: #333;
+    }
+
+    .input-form {
+      display: flex;
+      padding: 10px;
+      background-color: #f9f9f9;
+      border-top: 1px solid #ddd;
+    }
+
+    .input-form input {
+      flex: 1;
+      padding: 8px;
+      border-radius: 20px;
+      border: 1px solid #ddd;
+    }
+
+    .input-form button {
+      background-color: #007bff;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 20px;
+      cursor: pointer;
+      margin-left: 10px;
+    }
+
+    .input-form button:hover {
+      background-color: #0056b3;
+    }
+  </style>
+</head>
+<body>
+  <div class="chat-container">
+    <div class="chat-box">
+      <div class="messages" id="messages"></div>
+      <div class="input-form">
+        <input type="text" id="userInput" placeholder="Type a message..." />
+        <button onclick="sendMessage()">Send</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+
+      const messagesContainer = document.getElementById('messages');
+      const botBubble = document.createElement('div');
+      botBubble.classList.add('message-bubble', 'bot');
+      botBubble.textContent = "Hi! Welcome to Trademarkia. I'm Chattorney, your virtual assistant here to help you with trademark services. How can i assist you today?";
+      messagesContainer.appendChild(botBubble);
+
+    async function sendMessage() {
+      const userInput = document.getElementById('userInput');
+      const userMessage = userInput.value.trim();
+
+      if (userMessage === '') return;
+      
+      userInput.value = '';
+
+      const messagesContainer = document.getElementById('messages');
+      const userBubble = document.createElement('div');
+      userBubble.classList.add('message-bubble', 'user');
+      userBubble.textContent = userMessage;
+      messagesContainer.appendChild(userBubble);
+
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+
+      try {
+        const response = await fetch('http://localhost:8000/generate', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ prompt: userMessage, model: "llama3.2:1b" })
+        });
+       
+        console.log(response);
+        if (response.ok) {
+          const result = await response.json();
+
+          console.log(result);
+
+          const botBubble = document.createElement('div');
+          botBubble.classList.add('message-bubble', 'bot');
+          botBubble.textContent = result.generated_text;
+          messagesContainer.appendChild(botBubble);
+        } else {
+          const errorBubble = document.createElement('div');
+          errorBubble.classList.add('message-bubble', 'bot');
+          errorBubble.textContent = 'Error: Unable to send message to API.';
+          messagesContainer.appendChild(errorBubble);
+        }
+
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+      } catch (error) {
+        const errorBubble = document.createElement('div');
+        errorBubble.classList.add('message-bubble', 'bot');
+        errorBubble.textContent = 'Error: Unable to connect to API.';
+        messagesContainer.appendChild(errorBubble);
+
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+      }
+
+    }
+
+  document.getElementById('userInput').addEventListener('keydown', function(event) {
+  if (event.key === 'Enter') {
+    event.preventDefault(); 
+    sendMessage(); 
+  }
+});
+  </script>
+</body>
+</html>
+
