@@ -68,6 +68,7 @@ async def lifespan(app: FastAPI):
     model = RaggedModel(model="llama3.2:1b")
     await model.load_model()
     yield { "model": model }
+    app.state.model = model
     await model.close()
 
 app = FastAPI()
@@ -88,29 +89,16 @@ async def health_check(request: Request):
     return templates.TemplateResponse(request=request, name='index.html')
 
 @app.post("/generate")
-async def generate_response(query: Query, state=Depends(lambda: app.state)):
+async def generate_response(query: Query):
     try:
         print(query.prompt)
-        model: RaggedModel = state["model"]
+        model: RaggedModel = app.state.model;
         print(model)
         response = model.ask_question(question=query.prompt)
         print(f"{query.prompt}: {response}")
 
         return { "generated_text": response }
-        #ollama_api_url = f"{OLLAMA_SERVER_URL}/api/generate"
-        #json_payload = {"model": query.model, "prompt": query.prompt, "stream": False }
-
-        #response = requests.post(
-        #    ollama_api_url,
-        #    json=json_payload
-        #)
-
-        #print(response)
-
-        #response.raise_for_status()
-
-        #return { "generated_text": response.json()["response"] }
-
+        
     except requests.RequestException as e:
         raise HTTPException(status_code=500, detail=f"Error while trying to communicate to ollama {str(e)}")
 
@@ -127,5 +115,4 @@ async def list_models():
         return { "models": response.json()["models"] }
     except requests.RequestException as e:
         raise HTTPException(status_code=500, detail=f"Error fetching models {str(e)}")
-
 
