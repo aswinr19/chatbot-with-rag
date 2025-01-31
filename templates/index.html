@@ -133,12 +133,12 @@
 
 
       try {
-        const response = await fetch('http://localhost:8000/generate', {
+        const response = await fetch('http://localhost:8000/chat', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify({ prompt: userMessage, model: "llama3.2:1b" })
+          body: JSON.stringify({ question: userMessage,session_id: "1", model: "llama3.2:1b" })
         });
        
         console.log(response);
@@ -149,7 +149,7 @@
 
           const botBubble = document.createElement('div');
           botBubble.classList.add('message-bubble', 'bot');
-          botBubble.textContent = result.generated_text;
+          botBubble.textContent = result.answer;
           messagesContainer.appendChild(botBubble);
         } else {
           const errorBubble = document.createElement('div');

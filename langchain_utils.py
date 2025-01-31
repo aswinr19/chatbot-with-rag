@@ -8,15 +8,15 @@ from langchain_core.documents import Document
 from chroma_utils import vectorstore
 
 
-retriever = vectorstore.as_retriever(search_kwargs={"k": 2})
+retriever = vectorstore.as_retriever(search_kwargs={"k": 5})
 
 output_parser = StrOutputParser()
 
 contextualize_q_system_prompt = (
-    "Given a chat history and the latest user question "
-    "which might reference context in the chat history, "
-    "formulate a standalone question which can be understood "
-    "without the chat history. Do NOT answer the question, "
+    "Given a chat history and the latest user question"
+    "which might reference context in the chat history,"
+    "formulate a standalone question which can be understood"
+    "without the chat history. Do NOT answer the question,"
     "just reformulate it if needed and otherwise return it as is."
 )
 
@@ -27,7 +27,7 @@ contextualize_q_prompt = ChatPromptTemplate.from_messages([
 ])
 
 qa_prompt = ChatPromptTemplate.from_messages([
-    ("system", "You are a helpful AI assistant called Chattorney for a trademark registering firm Trademarkia.You are tasked with helping users to register a trademark via Trademarkia. The details about Trademarkia and their services and pricing is in the context.Use the following context to answer the user's question. Avoid generic questions that doesn't relate to trademark registration and also ask the user if needs to connect to an expert if need any services that are beyond your capabilities"),
+    ("system", "You are a helpful AI assistant called Chattorney for a trademark registering firm Trademarkia. Make the answers short and concise. Use the following context to answer the user's question. answer questions related to trademark registration and also."),
     ("system", "Context: {context}"),
     MessagesPlaceholder(variable_name="chat_history"),
     ("human", "{input}")
