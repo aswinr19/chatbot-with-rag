@@ -1,7 +1,6 @@
 import os
 import requests
-from rag import ask_question
-from langchain_core.messages import HumanMessage, SystemMessage
+from typing import Annotated
 from langchain_ollama import ChatOllama
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import SKLearnVectorStore
@@ -10,15 +9,26 @@ from langchain_community.document_loaders import TextLoader
 from langchain.chains import create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain_core.prompts import ChatPromptTemplate
-from fastapi import FastAPI, HTTPException, Request, Response , Depends
+from fastapi import FastAPI, HTTPException, Request, Depends
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from contextlib import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
+from sqlmodel import Field, Session, SQLModel, create_engine, select
 from pydantic import BaseModel
+from datetime import datetime
+
 
 OLLAMA_SERVER_URL = "http://localhost:11434"
+sqlite_file_name = "database.db"
+sqlite_url = f"sqlite:///{sqlite_file_name}"
+
+class Chat(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    human: str | None = Field(default=None)
+    bot: str | None = Field(default=None)
+    created_at: datetime | None = Field(default=datetime.utcnow) 
 
 class Query(BaseModel):
     prompt: str
@@ -26,7 +36,6 @@ class Query(BaseModel):
 
 class RaggedModel:
     def __init__(self, model):
-        #local_llm = "llama3.2:1b"
         self.local_llm = model
         self.llm = ChatOllama(model=self.local_llm, temperature=0)
 
@@ -45,7 +54,7 @@ class RaggedModel:
         self.retriever = self.vectorstore.as_retriever(k=3)
        
         prompt = ChatPromptTemplate.from_messages([
-            ("system", "You are a virtual assistant  called CHATTORNEY for the trade mark registering law firm LegalForce which operates under the name Trademarkia. You are tasked with helping people register for trademarks. You should talk very politely with the customer. And you should help the customer register trademarks, explain about pricing of trademarking and assist in simple tasks. The different information regarding the different services, pricing, and features of trademarkia are all given in the context. You shpuld always anser from the context only. If you dont know the answer from the context, you should answer that you can't help with this and should ask the customer to if he want to pass it to a human expert. Use the following pieces of retrieved context to augment your own knowledge."),
+            ("system", "You are a virtual assistant called CHATTORNEY for the trade mark registering law firm LegalForce which operates under the name Trademarkia. You are tasked with helping people register for trademarks. You should talk very politely with the customer. And you should help the customer register trademarks, explain about pricing of trademarking and assist in simple tasks. The different information regarding the different services, pricing, and features of trademarkia are all given in the context. You should always anser from the context only. If you dont know the answer from the context, you should answer that you can't help with this and should ask the customer to if he want to pass it to a human expert. Use the following pieces of retrieved context to augment your own knowledge."),
             ("human", "Context: {context}"),
             ("human", "Question: {input}"),
             ("human", "Please provide an short answer with 2-4 sentences and is relevent to the question from the retrieved context, but don't mention the context. Always be polite when answering.")
@@ -53,8 +62,6 @@ class RaggedModel:
         
         self.question_answer_chain = create_stuff_documents_chain(self.llm, prompt)
         self.rag_chain = create_retrieval_chain(self.retriever, self.question_answer_chain)
-        #return rag_chain
-        #rag_chain = load_rag_state()
         
     def ask_question(self,question):
         result = self.rag_chain.invoke({"input": question})
@@ -63,14 +70,37 @@ class RaggedModel:
     def close(self):
         pass
 
+
+connect_args = {"check_same_thread": False}
+engine = create_engine(sqlite_url, connect_args=connect_args)
+
+def create_db_and_tables():
+    try:
+        SQLModel.metadata.create_all(engine)
+    except Exception as e:
+        print(f"Error creating tables: {e}")
+
+def get_session():
+    with Session(engine) as session:
+        yield session
+
+SessionDep = Annotated[Session, Depends(get_session)]
+
+model = {}
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    model = RaggedModel(model="llama3.2:1b")
-    await model.load_model()
-    yield { "model": model }
-    await model.close()
+    if not os.path.exists(sqlite_file_name):
+        create_db_and_tables()
 
-app = FastAPI()
+    model["chat_model"] = RaggedModel(model="llama3.2:1b")
+    model["chat_model"].load_model()
+    
+    yield
+
+    model.clear()
+
+app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -88,44 +118,27 @@ async def health_check(request: Request):
     return templates.TemplateResponse(request=request, name='index.html')
 
 @app.post("/generate")
-async def generate_response(query: Query, state=Depends(lambda: app.state)):
+async def generate_response(query: Query, session: SessionDep):
     try:
-        print(query.prompt)
-        model: RaggedModel = state["model"]
-        print(model)
-        response = model.ask_question(question=query.prompt)
+        chat_model: RaggedModel = model["chat_model"]
+        response = chat_model.ask_question(question=query.prompt)
         print(f"{query.prompt}: {response}")
 
+        chat_data = Chat(human=query.prompt, bot=response, created_at=datetime.now()) 
+        session.add(chat_data)
+        session.commit()
+        session.refresh(chat_data)
+
         return { "generated_text": response }
-        #ollama_api_url = f"{OLLAMA_SERVER_URL}/api/generate"
-        #json_payload = {"model": query.model, "prompt": query.prompt, "stream": False }
-
-        #response = requests.post(
-        #    ollama_api_url,
-        #    json=json_payload
-        #)
-
-        #print(response)
-
-        #response.raise_for_status()
-
-        #return { "generated_text": response.json()["response"] }
-
     except requests.RequestException as e:
         raise HTTPException(status_code=500, detail=f"Error while trying to communicate to ollama {str(e)}")
 
-@app.get("/models")
-async def list_models():
 
-    try:
-        ollama_api_url = f"{OLLAMA_SERVER_URL}/api/tags"
+@app.get("/all-chats")
+async def get_chats(session: SessionDep):
+    chats = session.exec(select(Chat).offset(0).limit(5)).all()
 
-        response = requests.get(ollama_api_url)
+    print(chats)
 
-        response.raise_for_status()
-        
-        return { "models": response.json()["models"] }
-    except requests.RequestException as e:
-        raise HTTPException(status_code=500, detail=f"Error fetching models {str(e)}")
-
+    return chats
 
