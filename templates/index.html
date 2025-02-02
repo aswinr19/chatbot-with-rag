@@ -113,7 +113,9 @@
       const botBubble = document.createElement('div');
       botBubble.classList.add('message-bubble', 'bot');
       botBubble.textContent = "Hi! Welcome to Trademarkia. I'm Chattorney, your virtual assistant here to help you with trademark services. How can i assist you today?";
-      messagesContainer.appendChild(botBubble);
+      setTimeout(() =>{
+        messagesContainer.appendChild(botBubble);
+      }, 800);
 
     async function sendMessage() {
       const userInput = document.getElementById('userInput');

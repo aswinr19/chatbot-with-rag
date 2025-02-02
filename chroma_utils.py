@@ -6,7 +6,7 @@ from typing import List
 from langchain_core.documents import Document
 import os
 
-text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200, length_function=len)
+text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=200, length_function=len)
 embeddings = NomicEmbeddings(model="nomic-embed-text-v1.5", inference_mode="local")
 
 vectorstore = Chroma(persist_directory="./chroma_db",embedding_function=embeddings)
