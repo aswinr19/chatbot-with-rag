@@ -31,8 +31,8 @@ Make sure you have Python 3.10 or greater installed on your system. You can down
 
 Step 2: Install Required Libraries
 
-```
 Clone the repository and navigate to the project folder: 
+```
 git clone git@github.com:aswinr19/chatbot-with-rag.git
 cd chatbot-with-rag
 ```

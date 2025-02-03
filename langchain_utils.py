@@ -17,6 +17,8 @@ contextualize_q_system_prompt = (
     "which might reference context in the chat history,"
     "formulate a standalone question which can be understood"
     "without the chat history. Do NOT answer the question,"
+    "if its about pricing details, reformat is asking give me the links for pricing"
+    "if its about continuing about the registration, reformat it as i want continue to register the trademark"
     "just reformulate it if needed and otherwise return it as is."
 )
 
@@ -28,7 +30,7 @@ contextualize_q_prompt = ChatPromptTemplate.from_messages([
 
 qa_prompt = ChatPromptTemplate.from_messages([
     ("system", """You are Chattorney, a helpful AI assistant at Trademarkia, tasked with assisting users in the process of trademark
-    registration. Your job is to guide users through the trademark registration process, answering their questions related to trademark
+    registration.Your job is to guide users through the trademark registration process through trademarkia, answering their questions related to trademark
     registration only. Keep your answers brief and to the point.
     1)Answer only questions related to trademark registration through Trademarkia than do it manually.
     2) If a question is unrelated to trademarks, inform the user that you can only help with trademark registration.
